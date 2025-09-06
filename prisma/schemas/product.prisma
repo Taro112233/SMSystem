@@ -11,8 +11,8 @@ model ProductCategory {
   name           String
   code           String?      // Category code
   description    String?
-  color          String?      // Hex color for UI
-  icon           String?      // Icon name or emoji
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
@@ -43,8 +43,8 @@ model ProductType {
   name           String       // เช่น "ยาเม็ด", "ยาน้ำ", "อุปกรณ์การแพทย์"
   code           String?      // รหัสประเภท
   description    String?
-  color          String?      // สีสำหรับ UI
-  icon           String?      // ไอคอน
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
@@ -100,44 +100,25 @@ model Product {
   
   // Product Identification - ตามความต้องการ
   orgProductCode String          // รหัสสินค้าขององค์กร (required)
-  sku            String?         // Stock Keeping Unit (optional)
   barcode        String?         // Barcode/QR code
   
   // Product Details - ตามความต้องการ
   name           String          // ชื่อสินค้า (required)
   description    String?         // รายละเอียดสินค้า (optional)
+  supplier       String?         // ชื่อผู้จัดจำหน่าย (optional)
   
   // Product Specifications - ตามความต้องการ
   strength       String?         // ความแรงสินค้า (เช่น "500mg")
   volume         String?         // ปริมาตรสินค้า (เช่น "100ml")
   qtyPerBox      Int             @default(1) // ปริมาณต่อกล่อง (required, default 1)
-  
-  // Additional Details
-  brand          String?         // Brand/Manufacturer
-  model          String?         // Model number
   unit           UnitType        @default(PIECE)
-  unitName       String?         // Custom unit name
-  
-  // Physical Properties
-  weight         Float?          // Weight in grams
-  dimensions     String?         // JSON: {length, width, height}
   
   // Inventory Settings
-  trackBatches   Boolean         @default(true)  // Enable batch/lot tracking (default true for pharmacy)
-  trackExpiry    Boolean         @default(true)  // Track expiry dates (default true for pharmacy)
   minStockLevel  Int             @default(0)     // Minimum stock alert
   maxStockLevel  Int?            // Maximum stock limit
   
   // Status & Settings - ตามความต้องการ
-  status         ProductStatus   @default(ACTIVE)
   isActive       Boolean         @default(true)  // สถานะการใช้งาน (required)
-  
-  // Media - 🔥 FIXED: Using JSON instead of String[]
-  images         String?         // JSON array of image URLs
-  documents      String?         // JSON array of document URLs
-  
-  // Custom Fields (JSON)
-  customFields   String?         // JSON object for custom data
   
   // Audit Fields
   createdBy      String          // User who created
@@ -173,15 +154,12 @@ model ProductBatch {
   // Batch Details - ตามความต้องการ
   batchNumber    String       // Lot/Batch number (required)
   expiryDate     DateTime?    // วันหมดอายุ (optional)
-  manufactureDate DateTime?   // วันที่ผลิต (optional)
-  supplier       String?      // ชื่อผู้จัดจำหน่าย (optional)
   
   // Pricing - ตามความต้องการ (แต่ละ lot ราคาต่างกัน)
   costPrice      Float        @default(0) // ราคาต้นทุนต่อกล่อง (required)
   sellingPrice   Float        @default(0) // ราคาขายต่อกล่อง (required)
   
   // Quantity Tracking
-  initialQty     Int          @default(0) // จำนวนเริ่มต้น
   currentQty     Int          @default(0) // จำนวนปัจจุบัน
   
   // Status

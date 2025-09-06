@@ -11,21 +11,12 @@ model Stock {
   // Stock Quantities
   totalQuantity  Int          @default(0)  // Total available
   reservedQty    Int          @default(0)  // Reserved for transfers
-  availableQty   Int          @default(0)  // Available = total - reserved
   
   // Stock Levels
   minStockLevel  Int          @default(0)  // Department-specific minimum
   maxStockLevel  Int?         // Department-specific maximum
   reorderPoint   Int          @default(0)  // Auto-reorder trigger
   reorderQty     Int?         // Auto-reorder quantity
-  
-  // Financial
-  totalValue     Float        @default(0)  // Total inventory value
-  avgCostPrice   Float        @default(0)  // Weighted average cost
-  
-  // Location
-  location       String?      // Physical location/bin
-  zone           String?      // Storage zone
   
   // Audit Fields
   createdBy      String       // User who created
@@ -44,7 +35,6 @@ model Stock {
   transactions   StockTransaction[]
   
   @@unique([organizationId, productId, departmentId])
-  @@index([availableQty])
   @@index([minStockLevel])
   @@index([totalQuantity])
   @@map("stocks")

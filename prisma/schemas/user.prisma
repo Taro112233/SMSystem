@@ -20,11 +20,6 @@ model User {
   
   // Security
   lastLogin   DateTime?
-  lastLoginIp String?
-  
-  // Preferences
-  language    String     @default("th")
-  timezone    String     @default("Asia/Bangkok")
   
   // Timestamps
   createdAt   DateTime   @default(now())
@@ -58,8 +53,7 @@ model UserInvitation {
   inviteeEmail   String
   
   // Invitation Details
-  roleId         String?          // 🔥 FIXED: Single role ID instead of array
-  message        String?          // Personal message
+  roleId         String?          // 🔥 FIXED: Single role ID instead of arrayฃ
   
   // Status
   status         InvitationStatus @default(PENDING)

@@ -25,8 +25,6 @@ model Organization {
   // Feature Settings
   allowDepartments    Boolean    @default(true)
   allowCustomRoles    Boolean    @default(true)
-  allowGuestAccess    Boolean    @default(false)
-  maxUsers           Int?       // User limit (null = unlimited)
   
   // Timestamps
   createdAt   DateTime           @default(now())
@@ -88,15 +86,11 @@ model Department {
   name           String
   code           String       // Short code (e.g., "IT", "HR")
   description    String?
-  color          String?      // Hex color for UI
-  icon           String?      // Icon name or emoji
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
-  allowTransfers Boolean      @default(true)
-  
-  // Manager
-  managerId      String?      // Department manager
   
   // Audit Fields
   createdBy      String       // User who created

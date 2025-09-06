@@ -43,13 +43,6 @@ model Transfer {
   deliveredDate     DateTime?
   receivedDate      DateTime?
   
-  // Notes & Comments
-  requestNote       String?        // Requester's note
-  approvalNote      String?        // Approver's note
-  dispatchNote      String?        // Dispatcher's note
-  receiverNote      String?        // Receiver's note
-  rejectionReason   String?        // If rejected
-  
   // Shipping Info
   shippingMethod    String?        // Delivery method
   trackingNumber    String?        // Tracking reference
@@ -105,12 +98,7 @@ model TransferItem {
   totalValue      Float        @default(0)
   
   // Item Status
-  status          String       @default("PENDING") // PENDING, APPROVED, DISPATCHED, RECEIVED
-  
-  // Notes
-  requestNote     String?      // Requester's note for this item
-  dispatchNote    String?      // Dispatcher's note
-  receiverNote    String?      // Receiver's note
+  status          TransferItemStatus @default(PENDING)
   
   // Audit Fields
   createdBy       String       // User who created

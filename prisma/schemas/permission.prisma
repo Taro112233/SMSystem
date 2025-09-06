@@ -52,8 +52,8 @@ model OrganizationRole {
   // Role Details
   name           String       // e.g., "ผู้จัดการคลัง"
   description    String?
-  color          String?      // Hex color (e.g., "#4ECDC4")
-  icon           String?      // Emoji or icon name
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Role Settings
   position       Int          @default(0) // Higher = more priority
@@ -110,7 +110,6 @@ model OrganizationUserRole {
   assignedBy     String?          // Who assigned this role
   assignedAt     DateTime         @default(now())
   expiresAt      DateTime?        // Optional expiry
-  note           String?          // Assignment note
   
   // Status
   isActive       Boolean          @default(true)

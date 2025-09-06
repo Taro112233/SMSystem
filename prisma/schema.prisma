@@ -1,6 +1,6 @@
 // This file is auto-generated. Do not edit manually.
 // Edit files in prisma/schemas/ directory instead.
-// Last generated: 2025-09-06T14:46:21.321Z
+// Last generated: 2025-09-06T17:03:16.793Z
 // InvenStock - Multi-Tenant Inventory Management System V1.0
 
 generator client {
@@ -119,6 +119,14 @@ enum TransferStatus {
   REJECTED   // ปฏิเสธ
 }
 
+enum TransferItemStatus {
+  PENDING
+  APPROVED  
+  DISPATCHED
+  RECEIVED
+  CANCELLED
+}
+
 enum TransferType {
   INTERNAL   // โอนภายในองค์กร
   EXTERNAL   // โอนภายนอก
@@ -159,6 +167,55 @@ enum AuditAction {
   IMPORT
 }
 
+// ===== UI ENUMS FOR COLORS & ICONS =====
+enum ColorTheme {
+  BLUE         // #3B82F6 - สีน้ำเงิน
+  GREEN        // #10B981 - สีเขียว
+  RED          // #EF4444 - สีแดง
+  YELLOW       // #F59E0B - สีเหลือง
+  PURPLE       // #8B5CF6 - สีม่วง
+  PINK         // #EC4899 - สีชมพู
+  INDIGO       // #6366F1 - สีน้ำเงินเข้ม
+  TEAL         // #14B8A6 - สีเขียวฟ้า
+  ORANGE       // #F97316 - สีส้ม
+  GRAY         // #6B7280 - สีเทา
+  SLATE        // #475569 - สีเทาเข้ม
+  EMERALD      // #059669 - สีเขียวมรกต
+}
+
+enum IconType {
+  // Department Icons
+  BUILDING     // 🏢 สำนักงาน
+  HOSPITAL     // 🏥 โรงพยาบาล
+  PHARMACY     // 💊 ร้านยา
+  WAREHOUSE    // 📦 คลังสินค้า
+  LABORATORY   // 🧪 ห้องแล็บ
+  
+  // Product Category Icons
+  PILL         // 💊 ยาเม็ด
+  BOTTLE       // 🍼 ยาน้ำ
+  SYRINGE      // 💉 ยาฉีด
+  BANDAGE      // 🩹 อุปกรณ์การแพทย์
+  STETHOSCOPE  // 🩺 เครื่องมือแพทย์
+  
+  // Role Icons
+  CROWN        // 👑 เจ้าของ
+  SHIELD       // 🛡️ ผู้จัดการ
+  PERSON       // 👤 พนักงาน
+  EYE          // 👁️ ผู้ตรวจสอบ
+  GEAR         // ⚙️ ระบบ
+  
+  // General Icons
+  BOX          // 📦 กล่อง
+  FOLDER       // 📁 โฟลเดอร์
+  TAG          // 🏷️ ป้ายกำกับ
+  STAR         // ⭐ ดาว
+  HEART        // ❤️ หัวใจ
+  CIRCLE       // ⚪ วงกลม
+  SQUARE       // ⬜ สี่เหลี่ยม
+  TRIANGLE     // 🔺 สามเหลี่ยม
+}
+
 // ==========================================
 // USER SCHEMA - V1.0
 // ==========================================
@@ -185,11 +242,6 @@ model User {
   
   // Security
   lastLogin   DateTime?
-  lastLoginIp String?
-  
-  // Preferences
-  language    String     @default("th")
-  timezone    String     @default("Asia/Bangkok")
   
   // Timestamps
   createdAt   DateTime   @default(now())
@@ -223,8 +275,7 @@ model UserInvitation {
   inviteeEmail   String
   
   // Invitation Details
-  roleId         String?          // 🔥 FIXED: Single role ID instead of array
-  message        String?          // Personal message
+  roleId         String?          // 🔥 FIXED: Single role ID instead of arrayฃ
   
   // Status
   status         InvitationStatus @default(PENDING)
@@ -280,8 +331,6 @@ model Organization {
   // Feature Settings
   allowDepartments    Boolean    @default(true)
   allowCustomRoles    Boolean    @default(true)
-  allowGuestAccess    Boolean    @default(false)
-  maxUsers           Int?       // User limit (null = unlimited)
   
   // Timestamps
   createdAt   DateTime           @default(now())
@@ -343,15 +392,11 @@ model Department {
   name           String
   code           String       // Short code (e.g., "IT", "HR")
   description    String?
-  color          String?      // Hex color for UI
-  icon           String?      // Icon name or emoji
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
-  allowTransfers Boolean      @default(true)
-  
-  // Manager
-  managerId      String?      // Department manager
   
   // Audit Fields
   createdBy      String       // User who created
@@ -461,8 +506,8 @@ model OrganizationRole {
   // Role Details
   name           String       // e.g., "ผู้จัดการคลัง"
   description    String?
-  color          String?      // Hex color (e.g., "#4ECDC4")
-  icon           String?      // Emoji or icon name
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Role Settings
   position       Int          @default(0) // Higher = more priority
@@ -519,7 +564,6 @@ model OrganizationUserRole {
   assignedBy     String?          // Who assigned this role
   assignedAt     DateTime         @default(now())
   expiresAt      DateTime?        // Optional expiry
-  note           String?          // Assignment note
   
   // Status
   isActive       Boolean          @default(true)
@@ -553,8 +597,8 @@ model ProductCategory {
   name           String
   code           String?      // Category code
   description    String?
-  color          String?      // Hex color for UI
-  icon           String?      // Icon name or emoji
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
@@ -585,8 +629,8 @@ model ProductType {
   name           String       // เช่น "ยาเม็ด", "ยาน้ำ", "อุปกรณ์การแพทย์"
   code           String?      // รหัสประเภท
   description    String?
-  color          String?      // สีสำหรับ UI
-  icon           String?      // ไอคอน
+  color          ColorTheme?    // แทน String?
+  icon           IconType?      // แทน String?
   
   // Settings
   isActive       Boolean      @default(true)
@@ -642,44 +686,25 @@ model Product {
   
   // Product Identification - ตามความต้องการ
   orgProductCode String          // รหัสสินค้าขององค์กร (required)
-  sku            String?         // Stock Keeping Unit (optional)
   barcode        String?         // Barcode/QR code
   
   // Product Details - ตามความต้องการ
   name           String          // ชื่อสินค้า (required)
   description    String?         // รายละเอียดสินค้า (optional)
+  supplier       String?         // ชื่อผู้จัดจำหน่าย (optional)
   
   // Product Specifications - ตามความต้องการ
   strength       String?         // ความแรงสินค้า (เช่น "500mg")
   volume         String?         // ปริมาตรสินค้า (เช่น "100ml")
   qtyPerBox      Int             @default(1) // ปริมาณต่อกล่อง (required, default 1)
-  
-  // Additional Details
-  brand          String?         // Brand/Manufacturer
-  model          String?         // Model number
   unit           UnitType        @default(PIECE)
-  unitName       String?         // Custom unit name
-  
-  // Physical Properties
-  weight         Float?          // Weight in grams
-  dimensions     String?         // JSON: {length, width, height}
   
   // Inventory Settings
-  trackBatches   Boolean         @default(true)  // Enable batch/lot tracking (default true for pharmacy)
-  trackExpiry    Boolean         @default(true)  // Track expiry dates (default true for pharmacy)
   minStockLevel  Int             @default(0)     // Minimum stock alert
   maxStockLevel  Int?            // Maximum stock limit
   
   // Status & Settings - ตามความต้องการ
-  status         ProductStatus   @default(ACTIVE)
   isActive       Boolean         @default(true)  // สถานะการใช้งาน (required)
-  
-  // Media - 🔥 FIXED: Using JSON instead of String[]
-  images         String?         // JSON array of image URLs
-  documents      String?         // JSON array of document URLs
-  
-  // Custom Fields (JSON)
-  customFields   String?         // JSON object for custom data
   
   // Audit Fields
   createdBy      String          // User who created
@@ -715,15 +740,12 @@ model ProductBatch {
   // Batch Details - ตามความต้องการ
   batchNumber    String       // Lot/Batch number (required)
   expiryDate     DateTime?    // วันหมดอายุ (optional)
-  manufactureDate DateTime?   // วันที่ผลิต (optional)
-  supplier       String?      // ชื่อผู้จัดจำหน่าย (optional)
   
   // Pricing - ตามความต้องการ (แต่ละ lot ราคาต่างกัน)
   costPrice      Float        @default(0) // ราคาต้นทุนต่อกล่อง (required)
   sellingPrice   Float        @default(0) // ราคาขายต่อกล่อง (required)
   
   // Quantity Tracking
-  initialQty     Int          @default(0) // จำนวนเริ่มต้น
   currentQty     Int          @default(0) // จำนวนปัจจุบัน
   
   // Status
@@ -766,21 +788,12 @@ model Stock {
   // Stock Quantities
   totalQuantity  Int          @default(0)  // Total available
   reservedQty    Int          @default(0)  // Reserved for transfers
-  availableQty   Int          @default(0)  // Available = total - reserved
   
   // Stock Levels
   minStockLevel  Int          @default(0)  // Department-specific minimum
   maxStockLevel  Int?         // Department-specific maximum
   reorderPoint   Int          @default(0)  // Auto-reorder trigger
   reorderQty     Int?         // Auto-reorder quantity
-  
-  // Financial
-  totalValue     Float        @default(0)  // Total inventory value
-  avgCostPrice   Float        @default(0)  // Weighted average cost
-  
-  // Location
-  location       String?      // Physical location/bin
-  zone           String?      // Storage zone
   
   // Audit Fields
   createdBy      String       // User who created
@@ -799,7 +812,6 @@ model Stock {
   transactions   StockTransaction[]
   
   @@unique([organizationId, productId, departmentId])
-  @@index([availableQty])
   @@index([minStockLevel])
   @@index([totalQuantity])
   @@map("stocks")
@@ -906,13 +918,6 @@ model Transfer {
   deliveredDate     DateTime?
   receivedDate      DateTime?
   
-  // Notes & Comments
-  requestNote       String?        // Requester's note
-  approvalNote      String?        // Approver's note
-  dispatchNote      String?        // Dispatcher's note
-  receiverNote      String?        // Receiver's note
-  rejectionReason   String?        // If rejected
-  
   // Shipping Info
   shippingMethod    String?        // Delivery method
   trackingNumber    String?        // Tracking reference
@@ -968,12 +973,7 @@ model TransferItem {
   totalValue      Float        @default(0)
   
   // Item Status
-  status          String       @default("PENDING") // PENDING, APPROVED, DISPATCHED, RECEIVED
-  
-  // Notes
-  requestNote     String?      // Requester's note for this item
-  dispatchNote    String?      // Dispatcher's note
-  receiverNote    String?      // Receiver's note
+  status          TransferItemStatus @default(PENDING)
   
   // Audit Fields
   createdBy       String       // User who created
