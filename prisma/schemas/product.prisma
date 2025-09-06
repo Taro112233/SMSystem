@@ -1,7 +1,7 @@
 // prisma/schemas/product.prisma
 // ===== PRODUCT MANAGEMENT SCHEMA - InvenStock V1.0 =====
 
-// Hierarchical Product Categories
+// Custom Product Categories per Organization
 model ProductCategory {
   id             String       @id @default(cuid())
   organizationId String
@@ -34,48 +34,114 @@ model ProductCategory {
   @@map("product_categories")
 }
 
-// Products with Batch Support
+// Custom Product Types per Organization
+model ProductType {
+  id             String       @id @default(cuid())
+  organizationId String
+  
+  // Type Details
+  name           String       // เช่น "ยาเม็ด", "ยาน้ำ", "อุปกรณ์การแพทย์"
+  code           String?      // รหัสประเภท
+  description    String?
+  color          String?      // สีสำหรับ UI
+  icon           String?      // ไอคอน
+  
+  // Settings
+  isActive       Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products       Product[]
+  
+  @@unique([organizationId, name])
+  @@index([isActive])
+  @@map("product_types")
+}
+
+// Custom Product Forms per Organization  
+model ProductForm {
+  id             String       @id @default(cuid())
+  organizationId String
+  
+  // Form Details
+  name           String       // เช่น "เม็ด", "แคปซูล", "น้ำ", "ครีม"
+  code           String?      // รหัสรูปแบบ
+  description    String?
+  
+  // Settings
+  isActive       Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products       Product[]
+  
+  @@unique([organizationId, name])
+  @@index([isActive])
+  @@map("product_forms")
+}
+
+// Products with Custom Organization Fields
 model Product {
   id             String          @id @default(cuid())
   organizationId String
-  categoryId     String?
+  categoryId     String?         // หมวดหมู่สินค้า
+  typeId         String?         // ประเภทสินค้า (custom per org)
+  formId         String?         // รูปแบบสินค้า (custom per org)
   
-  // Product Identification
-  sku            String          // Stock Keeping Unit
+  // Product Identification - ตามความต้องการ
+  orgProductCode String          // รหัสสินค้าขององค์กร (required)
+  sku            String?         // Stock Keeping Unit (optional)
   barcode        String?         // Barcode/QR code
-  name           String          // Product name
-  description    String?
   
-  // Product Details
+  // Product Details - ตามความต้องการ
+  name           String          // ชื่อสินค้า (required)
+  description    String?         // รายละเอียดสินค้า (optional)
+  
+  // Product Specifications - ตามความต้องการ
+  strength       String?         // ความแรงสินค้า (เช่น "500mg")
+  volume         String?         // ปริมาตรสินค้า (เช่น "100ml")
+  qtyPerBox      Int             @default(1) // ปริมาณต่อกล่อง (required, default 1)
+  
+  // Additional Details
   brand          String?         // Brand/Manufacturer
   model          String?         // Model number
   unit           UnitType        @default(PIECE)
   unitName       String?         // Custom unit name
-  
-  // Pricing
-  costPrice      Float           @default(0)
-  sellingPrice   Float           @default(0)
   
   // Physical Properties
   weight         Float?          // Weight in grams
   dimensions     String?         // JSON: {length, width, height}
   
   // Inventory Settings
-  trackBatches   Boolean         @default(false) // Enable batch/lot tracking
-  trackExpiry    Boolean         @default(false) // Track expiry dates
+  trackBatches   Boolean         @default(true)  // Enable batch/lot tracking (default true for pharmacy)
+  trackExpiry    Boolean         @default(true)  // Track expiry dates (default true for pharmacy)
   minStockLevel  Int             @default(0)     // Minimum stock alert
   maxStockLevel  Int?            // Maximum stock limit
   
-  // Status & Settings
+  // Status & Settings - ตามความต้องการ
   status         ProductStatus   @default(ACTIVE)
-  isActive       Boolean         @default(true)
+  isActive       Boolean         @default(true)  // สถานะการใช้งาน (required)
   
-  // Media
-  images         String[]        // Array of image URLs
-  documents      String[]        // Array of document URLs
+  // Media - 🔥 FIXED: Using JSON instead of String[]
+  images         String?         // JSON array of image URLs
+  documents      String?         // JSON array of document URLs
   
   // Custom Fields (JSON)
   customFields   String?         // JSON object for custom data
+  
+  // Audit Fields
+  createdBy      String          // User who created
+  updatedBy      String?         // User who last updated
   
   // Timestamps
   createdAt      DateTime        @default(now())
@@ -84,32 +150,39 @@ model Product {
   // Relations
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  productType    ProductType?    @relation(fields: [typeId], references: [id])
+  productForm    ProductForm?    @relation(fields: [formId], references: [id])
   batches        ProductBatch[]
   stocks         Stock[]
   transferItems  TransferItem[]
   
-  @@unique([organizationId, sku])
-  @@index([status])
+  @@unique([organizationId, orgProductCode]) // องค์กรต้องมีรหัสสินค้าไม่ซ้ำ
+  @@index([isActive])
   @@index([categoryId])
+  @@index([typeId])
+  @@index([formId])
   @@index([barcode])
   @@map("products")
 }
 
-// Product Batches for Lot/Expiry Tracking
+// Product Batches for Lot/Expiry/Price Tracking - ตามความต้องการ
 model ProductBatch {
   id             String       @id @default(cuid())
   productId      String
   
-  // Batch Details
-  batchNumber    String       // Lot/Batch number
-  expiryDate     DateTime?    // Expiry date
-  manufactureDate DateTime?   // Manufacture date
-  supplier       String?      // Supplier name
+  // Batch Details - ตามความต้องการ
+  batchNumber    String       // Lot/Batch number (required)
+  expiryDate     DateTime?    // วันหมดอายุ (optional)
+  manufactureDate DateTime?   // วันที่ผลิต (optional)
+  supplier       String?      // ชื่อผู้จัดจำหน่าย (optional)
   
-  // Quantity & Cost
-  initialQty     Int          @default(0)
-  currentQty     Int          @default(0)
-  costPrice      Float        @default(0)
+  // Pricing - ตามความต้องการ (แต่ละ lot ราคาต่างกัน)
+  costPrice      Float        @default(0) // ราคาต้นทุนต่อกล่อง (required)
+  sellingPrice   Float        @default(0) // ราคาขายต่อกล่อง (required)
+  
+  // Quantity Tracking
+  initialQty     Int          @default(0) // จำนวนเริ่มต้น
+  currentQty     Int          @default(0) // จำนวนปัจจุบัน
   
   // Status
   isActive       Boolean      @default(true)
@@ -125,9 +198,11 @@ model ProductBatch {
   // Relations
   product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   stockTransactions StockTransaction[]
+  transferItems  TransferItem[]
   
-  @@unique([productId, batchNumber])
+  @@unique([productId, batchNumber]) // สินค้าแต่ละตัวต้องมี batch number ไม่ซ้ำ
   @@index([expiryDate])
   @@index([isActive])
+  @@index([costPrice])
   @@map("product_batches")
 }

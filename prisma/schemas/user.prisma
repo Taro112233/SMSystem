@@ -58,7 +58,7 @@ model UserInvitation {
   inviteeEmail   String
   
   // Invitation Details
-  roleIds        String[]         // Roles to assign when accepted
+  roleId         String?          // 🔥 FIXED: Single role ID instead of array
   message        String?          // Personal message
   
   // Status

@@ -38,8 +38,11 @@ model Organization {
   userRoles           OrganizationUserRole[]
   departments         Department[]
   productCategories   ProductCategory[]
+  productTypes        ProductType[]     // Added for custom product types
+  productForms        ProductForm[]     // Added for custom product forms
   products            Product[]
   stocks              Stock[]
+  stockTransactions   StockTransaction[] // 🔥 ADDED MISSING RELATION
   transfers           Transfer[]
   invitations         UserInvitation[]
   notifications       Notification[]
@@ -94,6 +97,10 @@ model Department {
   
   // Manager
   managerId      String?      // Department manager
+  
+  // Audit Fields
+  createdBy      String       // User who created
+  updatedBy      String?      // User who last updated
   
   // Timestamps
   createdAt      DateTime     @default(now())

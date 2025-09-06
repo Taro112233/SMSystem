@@ -22,6 +22,32 @@ enum OrganizationStatus {
   TRIAL      // ทดลองใช้
 }
 
+// ===== PRODUCT ENUMS =====
+enum UnitType {
+  PIECE      // ชิ้น
+  BOX        // กล่อง
+  BOTTLE     // ขวด
+  PACK       // แพ็ค
+  STRIP      // แผง
+  TUBE       // หลอด
+  VIAL       // ไวอัล
+  AMPOULE    // แอมพูล
+  KG         // กิโลกรัม
+  GRAM       // กรัม
+  LITER      // ลิตร
+  ML         // มิลลิลิตร
+  TABLET     // เม็ด
+  CAPSULE    // แคปซูล
+  CUSTOM     // กำหนดเอง
+}
+
+enum ProductStatus {
+  ACTIVE     // ใช้งานได้
+  INACTIVE   // ไม่ใช้งาน
+  DISCONTINUED // เลิกผลิต
+  RESTRICTED   // จำกัดการใช้
+}
+
 // ===== PERMISSION SYSTEM ENUMS =====
 enum PermissionAction {
   CREATE

@@ -88,6 +88,7 @@ model TransferItem {
   id              String       @id @default(cuid())
   transferId      String
   productId       String
+  batchId         String?      // Specific batch if tracked
   
   // Quantities at different stages
   requestedQty    Int          // Initially requested
@@ -96,11 +97,10 @@ model TransferItem {
   receivedQty     Int?         // Actually received
   
   // Batch Information
-  batchId         String?      // Specific batch if tracked
   lotNumber       String?      // Lot/batch number
   expiryDate      DateTime?    // Expiry date
   
-  // Pricing
+  // Pricing (from batch)
   unitPrice       Float        @default(0)
   totalValue      Float        @default(0)
   
@@ -124,12 +124,6 @@ model TransferItem {
   transfer        Transfer     @relation(fields: [transferId], references: [id], onDelete: Cascade)
   product         Product      @relation(fields: [productId], references: [id])
   batch           ProductBatch? @relation(fields: [batchId], references: [id])
-  
-  @@index([transferId])
-  @@index([productId])
-  @@index([status])
-  @@map("transfer_items")
-} @relation(fields: [batchId], references: [id])
   
   @@index([transferId])
   @@index([productId])
