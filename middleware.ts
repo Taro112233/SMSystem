@@ -1,18 +1,27 @@
-// 📄 File: middleware.ts
-// ✅ Updated to exclude /api/transactions/* from authentication
+// middleware.ts
+// InvenStock - Multi-Tenant Inventory Management System
+// Basic Authentication Middleware
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifyToken, isUserActive } from './lib/auth';
+import type { NextRequest } from 'next/request';
+import { verifyToken } from './lib/auth';
 
-// Routes ที่ไม่ต้อง authenticate
-const publicRoutes = ['/login', '/register', '/'];
+// Public routes that don't require authentication
+const publicRoutes = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/'
+];
+
+// Public API routes that don't require authentication
 const publicApiRoutes = [
-  '/api/auth/login', 
-  '/api/auth/register', 
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/health',
-  '/api/transactions/pharmacy',  // ✅ เพิ่ม transaction APIs
-  '/api/transactions/opd'        // ✅ เพิ่ม transaction APIs
+  '/api/status'
 ];
 
 export async function middleware(request: NextRequest) {
@@ -20,63 +29,81 @@ export async function middleware(request: NextRequest) {
 
   console.log(`🔍 Middleware: ${pathname}`);
 
-  // ✅ ข้าม static files, public routes และ transaction APIs
+  // Skip static files and public assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
-    pathname.includes('.') ||
-    publicRoutes.includes(pathname) ||
-    publicApiRoutes.some(route => pathname.startsWith(route)) || // ✅ ใช้ startsWith เพื่อครอบคลุม sub-paths
-    pathname.startsWith('/api/transactions') // ✅ exclude ทั้ง /api/transactions/* 
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/icons') ||
+    pathname.includes('.') && !pathname.includes('/api/')
   ) {
-    console.log(`✅ Public route, bypassing auth: ${pathname}`);
     return NextResponse.next();
   }
 
-  // ดึง token จาก cookie
-  const token = request.cookies.get('auth-token')?.value;
-
-  console.log(`🍪 Token exists: ${!!token}`);
-  if (token) {
-    console.log(`🍪 Token preview: ${token.substring(0, 20)}...`);
+  // Allow public routes
+  if (publicRoutes.includes(pathname)) {
+    console.log(`✅ Public route: ${pathname}`);
+    return NextResponse.next();
   }
 
-  // ไม่มี token -> redirect ไป login
+  // Allow public API routes
+  if (publicApiRoutes.some(route => pathname.startsWith(route))) {
+    console.log(`✅ Public API route: ${pathname}`);
+    return NextResponse.next();
+  }
+
+  // Get token from cookie
+  const token = request.cookies.get('auth-token')?.value;
+
+  // No token - redirect to login
   if (!token) {
     console.log(`❌ No token, redirecting to login`);
+    
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
+    
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // ตรวจสอบ token
+  // Verify token
   try {
-    const user = await verifyToken(token);
+    const payload = await verifyToken(token);
 
-    if (!user || !isUserActive(user)) {
-      console.log(`❌ Invalid token or inactive user`);
-
-      const response = pathname.startsWith('/api/')
-        ? NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
-        : NextResponse.redirect(new URL('/login', request.url));
-
-      response.cookies.delete('auth-token');
-      return response;
+    if (!payload || !payload.userId) {
+      console.log(`❌ Invalid token payload`);
+      throw new Error('Invalid token');
     }
 
-    console.log(`✅ User authenticated: ${user.username}`);
-    console.log(`📤 Middleware passed successfully`);
+    console.log(`✅ User authenticated: ${payload.userId}`);
+
+    // Add user info to request headers for API routes
+    if (pathname.startsWith('/api/')) {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-user-id', payload.userId);
+      requestHeaders.set('x-user-email', payload.email || '');
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+
     return NextResponse.next();
 
   } catch (error) {
     console.error('❌ Token verification failed:', error);
 
+    // Clear invalid token
     const response = pathname.startsWith('/api/')
-      ? NextResponse.json({ error: 'Token verification failed' }, { status: 401 })
+      ? NextResponse.json(
+          { error: 'Invalid or expired token' },
+          { status: 401 }
+        )
       : NextResponse.redirect(new URL('/login', request.url));
 
     response.cookies.delete('auth-token');
@@ -84,9 +111,16 @@ export async function middleware(request: NextRequest) {
   }
 }
 
-// ✅ Updated config matcher: ไม่ต้อง exclude ใน matcher เพราะเรา handle ใน logic แล้ว
+// Configure which routes to run middleware on
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, icons, etc.)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|robots.txt).*)',
   ],
 };
