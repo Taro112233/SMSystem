@@ -1,0 +1,128 @@
+// prisma/schemas/permission.prisma
+// ===== DISCORD-LIKE PERMISSION SYSTEM - InvenStock V1.0 =====
+
+// Permission Categories (for organization)
+model PermissionCategory {
+  id          String       @id @default(cuid())
+  name        String       // e.g., "products", "stock", "transfers"
+  displayName String       // e.g., "การจัดการสินค้า"
+  description String?
+  icon        String?      // Icon for UI
+  sortOrder   Int          @default(0)
+  isActive    Boolean      @default(true)
+  
+  // Relations
+  permissions Permission[]
+  
+  @@unique([name])
+  @@index([sortOrder])
+  @@map("permission_categories")
+}
+
+// System-wide Permissions
+model Permission {
+  id          String             @id @default(cuid())
+  categoryId  String
+  name        String             // e.g., "products.create"
+  displayName String             // e.g., "สร้างสินค้าใหม่"
+  description String?
+  action      PermissionAction
+  resource    String             // e.g., "products", "stock"
+  
+  // Permission Settings
+  isWildcard  Boolean            @default(false) // For *.* permissions
+  sortOrder   Int                @default(0)
+  isActive    Boolean            @default(true)
+  
+  // Relations
+  category    PermissionCategory @relation(fields: [categoryId], references: [id])
+  rolePermissions OrganizationRolePermission[]
+  
+  @@unique([name])
+  @@index([resource])
+  @@index([action])
+  @@map("permissions")
+}
+
+// Custom Roles per Organization (Discord-like)
+model OrganizationRole {
+  id             String       @id @default(cuid())
+  organizationId String
+  
+  // Role Details
+  name           String       // e.g., "ผู้จัดการคลัง"
+  description    String?
+  color          String?      // Hex color (e.g., "#4ECDC4")
+  icon           String?      // Emoji or icon name
+  
+  // Role Settings
+  position       Int          @default(0) // Higher = more priority
+  isDefault      Boolean      @default(false) // Auto-assign to new users
+  isSystemRole   Boolean      @default(false) // Cannot be deleted
+  
+  // Status
+  isActive       Boolean      @default(true)
+  
+  // Audit Fields
+  createdBy      String       // User who created
+  updatedBy      String?      // User who last updated
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions    OrganizationRolePermission[]
+  userRoles      OrganizationUserRole[]
+  
+  @@unique([organizationId, name])
+  @@index([position])
+  @@index([isDefault])
+  @@map("organization_roles")
+}
+
+// Role-Permission Mapping
+model OrganizationRolePermission {
+  id           String           @id @default(cuid())
+  roleId       String
+  permissionId String
+  
+  // Permission Value
+  allowed      Boolean          @default(true)
+  
+  // Relations
+  role         OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission       @relation(fields: [permissionId], references: [id])
+  
+  @@unique([roleId, permissionId])
+  @@map("organization_role_permissions")
+}
+
+// User-Role Assignment (One Role per User per Organization)
+model OrganizationUserRole {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  
+  // Assignment Details
+  assignedBy     String?          // Who assigned this role
+  assignedAt     DateTime         @default(now())
+  expiresAt      DateTime?        // Optional expiry
+  note           String?          // Assignment note
+  
+  // Status
+  isActive       Boolean          @default(true)
+  
+  // Relations
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  organizationUser OrganizationUser @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+  
+  @@unique([organizationId, userId]) // 🔥 1 คน = 1 role ต่อ 1 องค์กร
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("organization_user_roles")
+}

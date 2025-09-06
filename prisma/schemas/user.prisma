@@ -1,35 +1,85 @@
 // prisma/schemas/user.prisma
-// ===== 2. USER MANAGEMENT SCHEMA - V3.0 UNIFIED ACCESS =====
+// ===== USER MANAGEMENT SCHEMA - InvenStock V1.0 =====
 
-// Simple User Management - ผู้ใช้สามารถเข้าใช้งานได้ทุกแผนก
-// Context มาจากหน้าที่ใช้งาน ไม่ใช่จาก fixed role/department
 model User {
   id          String     @id @default(cuid())
-  username    String     @unique  // ⭐ REQUIRED: For authentication
+  email       String     @unique
+  username    String?    @unique
   password    String     // bcrypt hashed
-  firstName   String     // ⭐ REQUIRED: First name
-  lastName    String     // ⭐ REQUIRED: Last name  
-  position    String?    // ตำแหน่งงาน (ข้อมูลสำหรับแสดงเท่านั้น)
   
-  // ⭐ ไม่มี department/role กำหนดตาย เพราะใช้งานได้ทุกแผนก
-  // Context มาจากการเลือกใช้งานในหน้านั้นๆ
+  // Personal Information
+  firstName   String
+  lastName    String
+  avatar      String?    // URL to profile picture
+  phone       String?
   
-  status      UserStatus @default(UNAPPROVED) // ⭐ REQUIRED: User approval status
+  // Account Status
+  status      UserStatus @default(PENDING)
   isActive    Boolean    @default(true)
-  lastLogin   DateTime?  // ⭐ REQUIRED: Track login activity
+  emailVerified Boolean  @default(false)
+  
+  // Security
+  lastLogin   DateTime?
+  lastLoginIp String?
+  
+  // Preferences
+  language    String     @default("th")
+  timezone    String     @default("Asia/Bangkok")
+  
+  // Timestamps
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   
-  // Relations - เชื่อมต่อกับ actions ทั้งหมดที่ user ทำได้
+  // Relations
+  organizationUsers     OrganizationUser[]
+  organizationUserRoles OrganizationUserRole[]
+  sentInvitations       UserInvitation[] @relation("InviterUser")
+  receivedInvitations   UserInvitation[] @relation("InviteeUser")
   stockTransactions     StockTransaction[]
   transfersRequested    Transfer[] @relation("RequesterUser")
-  transfersApproved     Transfer[] @relation("ApproverUser")
-  transfersDispensed    Transfer[] @relation("DispenserUser")
+  transfersApproved     Transfer[] @relation("ApproverUser") 
+  transfersDispatched   Transfer[] @relation("DispatcherUser")
   transfersReceived     Transfer[] @relation("ReceiverUser")
+  notifications         Notification[]
+  auditLogs            AuditLog[]
   
-  // Indexes สำหรับ Performance
+  @@index([email])
   @@index([status])
-  @@index([username])
   @@index([isActive])
   @@map("users")
+}
+
+// User Invitations for joining organizations
+model UserInvitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  inviterId      String
+  inviteeId      String?          // null if inviting by email
+  inviteeEmail   String
+  
+  // Invitation Details
+  roleIds        String[]         // Roles to assign when accepted
+  message        String?          // Personal message
+  
+  // Status
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime         // Invitation expiry
+  
+  // Response
+  respondedAt    DateTime?
+  response       String?          // Reason for decline
+  
+  // Timestamps
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  // Relations
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User             @relation("InviterUser", fields: [inviterId], references: [id])
+  invitee        User?            @relation("InviteeUser", fields: [inviteeId], references: [id])
+  
+  @@unique([organizationId, inviteeEmail])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("user_invitations")
 }

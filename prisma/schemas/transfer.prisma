@@ -1,85 +1,138 @@
 // prisma/schemas/transfer.prisma
-// ===== 5. TRANSFER SYSTEM SCHEMA =====
+// ===== TRANSFER SYSTEM SCHEMA - InvenStock V1.0 =====
 
-// Enhanced Transfer System with Multi-step Workflow
+// Transfer Requests between Departments/Organizations
 model Transfer {
   id                String         @id @default(cuid())
-  requisitionNumber String         @unique // เลขที่ใบเบิก (manual input)
-  title             String         // ชื่อใบเบิก
-  purpose           String         // วัตถุประสงค์
+  organizationId    String
+  transferNumber    String         // Auto-generated transfer number
   
-  // Departments & Users
-  fromDept          Department     // หน่วยงานที่ขอเบิก (ต้นทาง)
-  toDept            Department     // หน่วยงานที่รับเบิก (ปลายทาง)
+  // Transfer Type & Direction
+  type              TransferType   @default(INTERNAL)
   
-  // User Signatures (Auto from login)
-  requesterId       String         // ผู้เบิก
-  approverId        String?        // ผู้อนุมัติ
-  dispenserId       String?        // ผู้จ่าย
-  receiverId        String?        // ผู้รับ
+  // Source & Destination
+  fromDeptId        String?        // Source department
+  toDeptId          String?        // Destination department
+  fromOrgId         String?        // For external transfers
+  toOrgId           String?        // For external transfers
   
-  // Status & Notes
-  status            TransferStatus @default(PENDING)
-  requestNote       String?        // หมายเหตุการขอ
-  approvalNote      String?        // หมายเหตุการอนุมัติ
+  // Transfer Details
+  title             String         // Transfer title/purpose
+  description       String?        // Detailed description
+  priority          String         @default("NORMAL") // HIGH, NORMAL, LOW
   
-  // Financial
+  // User Workflow
+  requesterId       String         // Who requested
+  approverId        String?        // Who approved
+  dispatcherId      String?        // Who prepared/dispatched
+  receiverId        String?        // Who received
+  
+  // Status & Workflow
+  status            TransferStatus @default(DRAFT)
+  
+  // Quantities & Values
   totalItems        Int            @default(0)
-  totalValue        Float          @default(0) // มูลค่ารวม
+  totalQuantity     Int            @default(0)
+  totalValue        Float          @default(0)
   
-  // Timestamps - Track complete workflow
-  requestedAt       DateTime       @default(now())
-  approvedAt        DateTime?
-  dispensedAt       DateTime?      // วันที่เตรียมของเสร็จ
-  receivedAt        DateTime?      // วันที่รับของ
+  // Dates & Times
+  requestedDate     DateTime       @default(now())
+  requiredDate      DateTime?      // When needed
+  approvedDate      DateTime?
+  dispatchedDate    DateTime?
+  deliveredDate     DateTime?
+  receivedDate      DateTime?
+  
+  // Notes & Comments
+  requestNote       String?        // Requester's note
+  approvalNote      String?        // Approver's note
+  dispatchNote      String?        // Dispatcher's note
+  receiverNote      String?        // Receiver's note
+  rejectionReason   String?        // If rejected
+  
+  // Shipping Info
+  shippingMethod    String?        // Delivery method
+  trackingNumber    String?        // Tracking reference
+  carrier           String?        // Shipping carrier
+  
+  // Audit Fields
+  createdBy         String         // User who created
+  updatedBy         String?        // User who last updated
+  
+  // Timestamps
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   
   // Relations
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromDept          Department?    @relation("FromDepartment", fields: [fromDeptId], references: [id])
+  toDept            Department?    @relation("ToDepartment", fields: [toDeptId], references: [id])
   requester         User           @relation("RequesterUser", fields: [requesterId], references: [id])
   approver          User?          @relation("ApproverUser", fields: [approverId], references: [id])
-  dispenser         User?          @relation("DispenserUser", fields: [dispenserId], references: [id])
+  dispatcher        User?          @relation("DispatcherUser", fields: [dispatcherId], references: [id])
   receiver          User?          @relation("ReceiverUser", fields: [receiverId], references: [id])
   items             TransferItem[]
-  stockTransactions StockTransaction[] // ⭐ เพิ่มใหม่
+  stockTransactions StockTransaction[]
   
-  // Indexes สำหรับ Performance
+  @@unique([organizationId, transferNumber])
   @@index([status])
-  @@index([fromDept])
-  @@index([toDept])
-  @@index([requestedAt])
-  @@index([requisitionNumber])
+  @@index([type])
+  @@index([requestedDate])
+  @@index([fromDeptId])
+  @@index([toDeptId])
   @@map("transfers")
 }
 
-// Enhanced Transfer Items with Batch Information
+// Transfer Items - Products in each transfer
 model TransferItem {
-  id              String   @id @default(cuid())
+  id              String       @id @default(cuid())
   transferId      String
-  drugId          String
+  productId       String
   
   // Quantities at different stages
-  requestedQty    Int      // จำนวนเบิก
-  approvedQty     Int?     // จำนวนอนุมัติ
-  dispensedQty    Int?     // จำนวนจ่าย (ใบส่งของ)
-  receivedQty     Int?     // จำนวนรับจริง
+  requestedQty    Int          // Initially requested
+  approvedQty     Int?         // Approved quantity
+  dispatchedQty   Int?         // Actually dispatched
+  receivedQty     Int?         // Actually received
   
-  // Batch Information (for dispensing)
-  lotNumber       String?  // Lot number
-  expiryDate      DateTime? // วันหมดอายุ
-  manufacturer    String?  // บริษัท
+  // Batch Information
+  batchId         String?      // Specific batch if tracked
+  lotNumber       String?      // Lot/batch number
+  expiryDate      DateTime?    // Expiry date
   
-  // Financial
-  unitPrice       Float    @default(0) // ราคาต่อหน่วย
-  totalValue      Float    @default(0) // มูลค่า (dispensedQty × unitPrice)
+  // Pricing
+  unitPrice       Float        @default(0)
+  totalValue      Float        @default(0)
+  
+  // Item Status
+  status          String       @default("PENDING") // PENDING, APPROVED, DISPATCHED, RECEIVED
   
   // Notes
-  itemNote        String?  // หมายเหตุรายการ
+  requestNote     String?      // Requester's note for this item
+  dispatchNote    String?      // Dispatcher's note
+  receiverNote    String?      // Receiver's note
+  
+  // Audit Fields
+  createdBy       String       // User who created
+  updatedBy       String?      // User who last updated
+  
+  // Timestamps
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   
   // Relations
-  transfer        Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  drug            Drug     @relation(fields: [drugId], references: [id])
+  transfer        Transfer     @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product         Product      @relation(fields: [productId], references: [id])
+  batch           ProductBatch? @relation(fields: [batchId], references: [id])
   
-  // Indexes
   @@index([transferId])
-  @@index([drugId])
+  @@index([productId])
+  @@index([status])
+  @@map("transfer_items")
+} @relation(fields: [batchId], references: [id])
+  
+  @@index([transferId])
+  @@index([productId])
+  @@index([status])
   @@map("transfer_items")
 }

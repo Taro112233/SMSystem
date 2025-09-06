@@ -1,0 +1,41 @@
+// prisma/schemas/audit.prisma
+// ===== AUDIT TRAIL SYSTEM SCHEMA - InvenStock V1.0 =====
+
+// Comprehensive Audit Logging
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?      // null for system actions
+  
+  // Action Details
+  action         AuditAction
+  resource       String       // Table/entity name
+  resourceId     String?      // ID of affected record
+  
+  // Change Details
+  oldValues      String?      // JSON of old values
+  newValues      String?      // JSON of new values
+  changes        String?      // JSON of specific changes
+  
+  // Request Context
+  userAgent      String?      // Browser/client info
+  ipAddress      String?      // Client IP
+  sessionId      String?      // Session identifier
+  
+  // Additional Context
+  description    String?      // Human-readable description
+  metadata       String?      // Additional JSON metadata
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id])
+  
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@map("audit_logs")
+}

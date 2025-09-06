@@ -1,0 +1,142 @@
+// prisma/schemas/organization.prisma
+// ===== MULTI-TENANT ORGANIZATION SCHEMA - InvenStock V1.0 =====
+
+model Organization {
+  id          String             @id @default(cuid())
+  name        String
+  slug        String             @unique // URL-friendly identifier
+  description String?
+  
+  // Branding & Appearance
+  logo        String?            // URL to logo
+  primaryColor String?           // Hex color code
+  
+  // Contact Information
+  email       String?
+  phone       String?
+  website     String?
+  address     String?
+  
+  // Settings
+  status      OrganizationStatus @default(ACTIVE)
+  timezone    String             @default("Asia/Bangkok")
+  currency    String             @default("THB")
+  
+  // Feature Settings
+  allowDepartments    Boolean    @default(true)
+  allowCustomRoles    Boolean    @default(true)
+  allowGuestAccess    Boolean    @default(false)
+  maxUsers           Int?       // User limit (null = unlimited)
+  
+  // Timestamps
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  // Relations
+  users               OrganizationUser[]
+  roles               OrganizationRole[]
+  userRoles           OrganizationUserRole[]
+  departments         Department[]
+  productCategories   ProductCategory[]
+  products            Product[]
+  stocks              Stock[]
+  transfers           Transfer[]
+  invitations         UserInvitation[]
+  notifications       Notification[]
+  settings            OrganizationSetting[]
+  auditLogs          AuditLog[]
+  
+  @@index([slug])
+  @@index([status])
+  @@map("organizations")
+}
+
+// User-Organization Relationship (Many-to-Many)
+model OrganizationUser {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  
+  // Membership Details
+  isOwner        Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+  lastActiveAt   DateTime?
+  
+  // Status
+  isActive       Boolean      @default(true)
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles          OrganizationUserRole[]
+  
+  @@unique([organizationId, userId])
+  @@index([isActive])
+  @@map("organization_users")
+}
+
+// Hierarchical Departments
+model Department {
+  id             String       @id @default(cuid())
+  organizationId String
+  parentId       String?      // For hierarchical structure
+  
+  // Department Details
+  name           String
+  code           String       // Short code (e.g., "IT", "HR")
+  description    String?
+  color          String?      // Hex color for UI
+  icon           String?      // Icon name or emoji
+  
+  // Settings
+  isActive       Boolean      @default(true)
+  allowTransfers Boolean      @default(true)
+  
+  // Manager
+  managerId      String?      // Department manager
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent         Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children       Department[] @relation("DepartmentHierarchy")
+  stocks         Stock[]
+  transfersFrom  Transfer[]   @relation("FromDepartment")
+  transfersTo    Transfer[]   @relation("ToDepartment")
+  
+  @@unique([organizationId, code])
+  @@index([parentId])
+  @@index([isActive])
+  @@map("departments")
+}
+
+// Organization Settings (Key-Value Store)
+model OrganizationSetting {
+  id             String       @id @default(cuid())
+  organizationId String
+  key            String       // Setting key (e.g., "stock.low_threshold")
+  value          String       // JSON string value
+  type           String       @default("string") // string, number, boolean, json
+  
+  // Metadata
+  description    String?
+  isEditable     Boolean      @default(true)
+  
+  // Audit Fields
+  createdBy      String       // User who created
+  updatedBy      String?      // User who last updated
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, key])
+  @@index([key])
+  @@map("organization_settings")
+}

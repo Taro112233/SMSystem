@@ -1,0 +1,133 @@
+// prisma/schemas/product.prisma
+// ===== PRODUCT MANAGEMENT SCHEMA - InvenStock V1.0 =====
+
+// Hierarchical Product Categories
+model ProductCategory {
+  id             String       @id @default(cuid())
+  organizationId String
+  parentId       String?      // For hierarchical structure
+  
+  // Category Details
+  name           String
+  code           String?      // Category code
+  description    String?
+  color          String?      // Hex color for UI
+  icon           String?      // Icon name or emoji
+  
+  // Settings
+  isActive       Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent         ProductCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       ProductCategory[] @relation("CategoryHierarchy")
+  products       Product[]
+  
+  @@unique([organizationId, name])
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("product_categories")
+}
+
+// Products with Batch Support
+model Product {
+  id             String          @id @default(cuid())
+  organizationId String
+  categoryId     String?
+  
+  // Product Identification
+  sku            String          // Stock Keeping Unit
+  barcode        String?         // Barcode/QR code
+  name           String          // Product name
+  description    String?
+  
+  // Product Details
+  brand          String?         // Brand/Manufacturer
+  model          String?         // Model number
+  unit           UnitType        @default(PIECE)
+  unitName       String?         // Custom unit name
+  
+  // Pricing
+  costPrice      Float           @default(0)
+  sellingPrice   Float           @default(0)
+  
+  // Physical Properties
+  weight         Float?          // Weight in grams
+  dimensions     String?         // JSON: {length, width, height}
+  
+  // Inventory Settings
+  trackBatches   Boolean         @default(false) // Enable batch/lot tracking
+  trackExpiry    Boolean         @default(false) // Track expiry dates
+  minStockLevel  Int             @default(0)     // Minimum stock alert
+  maxStockLevel  Int?            // Maximum stock limit
+  
+  // Status & Settings
+  status         ProductStatus   @default(ACTIVE)
+  isActive       Boolean         @default(true)
+  
+  // Media
+  images         String[]        // Array of image URLs
+  documents      String[]        // Array of document URLs
+  
+  // Custom Fields (JSON)
+  customFields   String?         // JSON object for custom data
+  
+  // Timestamps
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  
+  // Relations
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  batches        ProductBatch[]
+  stocks         Stock[]
+  transferItems  TransferItem[]
+  
+  @@unique([organizationId, sku])
+  @@index([status])
+  @@index([categoryId])
+  @@index([barcode])
+  @@map("products")
+}
+
+// Product Batches for Lot/Expiry Tracking
+model ProductBatch {
+  id             String       @id @default(cuid())
+  productId      String
+  
+  // Batch Details
+  batchNumber    String       // Lot/Batch number
+  expiryDate     DateTime?    // Expiry date
+  manufactureDate DateTime?   // Manufacture date
+  supplier       String?      // Supplier name
+  
+  // Quantity & Cost
+  initialQty     Int          @default(0)
+  currentQty     Int          @default(0)
+  costPrice      Float        @default(0)
+  
+  // Status
+  isActive       Boolean      @default(true)
+  
+  // Audit Fields
+  createdBy      String       // User who created
+  updatedBy      String?      // User who last updated
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockTransactions StockTransaction[]
+  
+  @@unique([productId, batchNumber])
+  @@index([expiryDate])
+  @@index([isActive])
+  @@map("product_batches")
+}
