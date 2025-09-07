@@ -1,4 +1,4 @@
-// app/utils/auth.tsx - CORRECTED VERSION
+// app/utils/auth.tsx - COMPLETE VERSION
 // InvenStock - Username-based Authentication Hooks
 
 'use client';
@@ -209,11 +209,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  // Initialize authentication state
+  // Initialize authentication state - MINIMAL FIX
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // First, try to get stored user data for immediate UI update
+        setLoading(true);
+        
+        // ✅ QUICK FIX: เช็ค cookie ก่อน
+        const hasCookie = typeof document !== 'undefined' && 
+                         document.cookie.includes('auth-token=');
+        
+        if (!hasCookie) {
+          console.log('🚫 No auth cookie found, skipping auth check');
+          setLoading(false);
+          return;
+        }
+        
+        // มี cookie แล้ว ค่อยไป refresh
+        console.log('🔄 Auth cookie found, verifying with server...');
+        
+        // Load stored data first for immediate UI update
         const storedUser = getStoredUserData();
         const storedOrg = getStoredOrganizationData();
         
@@ -223,9 +238,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (storedOrg) {
           setCurrentOrganization(storedOrg);
         }
-
-        // Then verify with server
+        
         await refreshUser();
+        
       } catch (err) {
         console.error('❌ Auth initialization failed:', parseAuthError(err));
         setLoading(false);
@@ -302,9 +317,6 @@ export function useAuthError(): string | null {
 
 // ===== MULTI-TENANT HOOKS =====
 
-/**
- * Hook to check if user has access to current organization
- */
 export function useHasOrganizationAccess(): boolean {
   const { user, currentOrganization, organizations } = useAuth();
   
@@ -315,9 +327,6 @@ export function useHasOrganizationAccess(): boolean {
   );
 }
 
-/**
- * Hook to check if user is owner of current organization
- */
 export function useIsOrganizationOwner(): boolean {
   const { currentOrganization, organizations } = useAuth();
   
@@ -330,9 +339,6 @@ export function useIsOrganizationOwner(): boolean {
   return userOrg?.isOwner || false;
 }
 
-/**
- * Hook to get available organizations for switching
- */
 export function useAvailableOrganizations(): OrganizationUser[] {
   const { organizations } = useAuth();
   return organizations.filter(org => org.isActive);
@@ -443,7 +449,7 @@ export function useAuthAction() {
 
 export function useLoginForm() {
   const [credentials, setCredentials] = useState<LoginRequest>({
-    username: '',              // ✅ แก้ไขจาก email เป็น username
+    username: '',
     password: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
@@ -471,12 +477,12 @@ export function useLoginForm() {
 
 export function useRegisterForm() {
   const [userData, setUserData] = useState<RegisterRequest>({
-    username: '',              // ✅ แก้ไขให้ username เป็น required
+    username: '',
     password: '',
     firstName: '',
     lastName: '',
-    email: '',                 // ✅ แก้ไขให้ email เป็น optional
-    phone: '',                 // ✅ เพิ่ม phone field
+    email: '',
+    phone: '',
     organizationName: '',
   });
   const [errors, setErrors] = useState<string[]>([]);

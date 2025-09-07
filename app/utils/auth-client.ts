@@ -1,13 +1,13 @@
-// app/utils/auth-client.ts - CORRECTED VERSION
-// InvenStock - Username-based Authentication (ตรงกับ Schema)
+// app/utils/auth-client.ts - COMPLETE VERSION
+// InvenStock - Username-based Authentication Client
 
 export interface User {
   id: string;
-  email?: string;             // ✅ Optional ตาม Schema
-  username: string;           // ✅ Required ตาม Schema
+  email?: string;
+  username: string;
   firstName: string;
   lastName: string;
-  fullName: string;           // Computed field
+  fullName: string;
   status: string;
   isActive: boolean;
   emailVerified: boolean;
@@ -38,9 +38,8 @@ export interface OrganizationUser {
   organization: Organization;
 }
 
-// ✅ FIXED: ใช้ username เป็น primary credential
 export interface LoginRequest {
-  username: string;           // ✅ Primary credential ตาม Schema
+  username: string;
   password: string;
 }
 
@@ -49,25 +48,24 @@ export interface LoginResponse {
   message: string;
   user: User;
   token: string;
-  organizations?: OrganizationUser[]; // Organizations ของ user
+  organizations?: OrganizationUser[];
 }
 
-// ✅ FIXED: username required, email optional
 export interface RegisterRequest {
-  username: string;           // ✅ Required primary credential
+  username: string;
   password: string;
   firstName: string;
   lastName: string;
-  email?: string;             // ✅ Optional ตาม Schema
-  phone?: string;             // ✅ Optional ตาม Schema
-  organizationName?: string;  // สำหรับสร้าง org ใหม่
+  email?: string;
+  phone?: string;
+  organizationName?: string;
 }
 
 export interface RegisterResponse {
   success: boolean;
   message: string;
   user: User;
-  token?: string;            // ไม่มีถ้า requiresApproval = true
+  token?: string;
   organization?: Organization;
   requiresApproval: boolean;
 }
@@ -82,9 +80,6 @@ export interface AuthError {
 
 // ===== API CLIENT FUNCTIONS =====
 
-/**
- * Login user with username and password
- */
 export async function loginUser(credentials: LoginRequest): Promise<LoginResponse> {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
@@ -104,9 +99,6 @@ export async function loginUser(credentials: LoginRequest): Promise<LoginRespons
   return data;
 }
 
-/**
- * Register new user
- */
 export async function registerUser(userData: RegisterRequest): Promise<RegisterResponse> {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
@@ -125,9 +117,6 @@ export async function registerUser(userData: RegisterRequest): Promise<RegisterR
   return data;
 }
 
-/**
- * Logout current user
- */
 export async function logoutUser(): Promise<void> {
   const response = await fetch('/api/auth/logout', {
     method: 'POST',
@@ -140,9 +129,6 @@ export async function logoutUser(): Promise<void> {
   }
 }
 
-/**
- * Get current user information with organizations
- */
 export async function getCurrentUser(): Promise<{
   user: User;
   organizations: OrganizationUser[];
@@ -158,12 +144,9 @@ export async function getCurrentUser(): Promise<{
     throw new Error(data.error || 'Failed to get user info');
   }
 
-  return data;
+  return data.data;
 }
 
-/**
- * Switch to different organization
- */
 export async function switchOrganization(organizationId: string): Promise<{
   organization: Organization;
   permissions: string[];
@@ -190,45 +173,70 @@ export async function switchOrganization(organizationId: string): Promise<{
 
 export function storeUserData(user: User): void {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('user_data', JSON.stringify(user));
+    try {
+      localStorage.setItem('user_data', JSON.stringify(user));
+    } catch (error) {
+      console.warn('Failed to store user data:', error);
+    }
   }
 }
 
 export function storeOrganizationData(organization: Organization): void {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('current_organization', JSON.stringify(organization));
+    try {
+      localStorage.setItem('current_organization', JSON.stringify(organization));
+    } catch (error) {
+      console.warn('Failed to store organization data:', error);
+    }
   }
 }
 
 export function getStoredUserData(): User | null {
   if (typeof window !== 'undefined') {
-    const userData = localStorage.getItem('user_data');
-    return userData ? JSON.parse(userData) : null;
+    try {
+      const userData = localStorage.getItem('user_data');
+      if (!userData || userData === 'undefined' || userData === 'null') {
+        return null;
+      }
+      return JSON.parse(userData);
+    } catch (error) {
+      console.warn('Failed to get stored user data:', error);
+      return null;
+    }
   }
   return null;
 }
 
 export function getStoredOrganizationData(): Organization | null {
   if (typeof window !== 'undefined') {
-    const orgData = localStorage.getItem('current_organization');
-    return orgData ? JSON.parse(orgData) : null;
+    try {
+      const orgData = localStorage.getItem('current_organization');
+      if (!orgData || orgData === 'undefined' || orgData === 'null') {
+        return null;
+      }
+      return JSON.parse(orgData);
+    } catch (error) {
+      console.warn('Failed to get stored organization data:', error);
+      return null;
+    }
   }
   return null;
 }
 
 export function clearStoredUserData(): void {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('current_organization');
-    localStorage.removeItem('user_organizations');
+    try {
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('current_organization');
+      localStorage.removeItem('user_organizations');
+    } catch (error) {
+      console.warn('Failed to clear stored data:', error);
+    }
   }
 }
 
 // ===== VALIDATION HELPERS =====
 
-/**
- * Validate login form data
- */
 export function validateLoginData(data: Partial<LoginRequest>): string[] {
   const errors: string[] = [];
 
@@ -245,9 +253,6 @@ export function validateLoginData(data: Partial<LoginRequest>): string[] {
   return errors;
 }
 
-/**
- * Validate registration form data
- */
 export function validateRegisterData(data: Partial<RegisterRequest>): string[] {
   const errors: string[] = [];
 
@@ -271,7 +276,6 @@ export function validateRegisterData(data: Partial<RegisterRequest>): string[] {
     errors.push('Last name is required');
   }
 
-  // Email validation (Optional แต่ต้องถูกรูปแบบถ้ากรอก)
   if (data.email?.trim()) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       errors.push('Invalid email format');
