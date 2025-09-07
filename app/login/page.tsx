@@ -1,9 +1,10 @@
-// app/login/page.tsx
+// app/login/page.tsx - FIXED IMPORTS
 
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/app/utils/auth-client";
+// ✅ แก้ไข import ให้ถูกต้อง
+import { useAuth } from "@/app/utils/auth"; // ← เปลี่ยนจาก auth-client เป็น auth
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -29,8 +30,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// ✅ ปรับ interface ให้ตรงกับ current schema
 interface LoginFormData {
-  username: string;
+  username: string;  // ✅ Primary credential ตาม schema
   password: string;
 }
 
@@ -44,6 +46,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(false);
 
+  // ✅ ใช้ useAuth hook จาก auth.tsx
   const { login, loading, user } = useAuth();
   const router = useRouter();
 
@@ -121,72 +124,56 @@ export default function LoginPage() {
     });
 
     try {
-      // ✅ ส่งข้อมูลตรงกับ schema (username + password)
-      const result = await login({
-        username: formData.username.trim(),
+      // ✅ ใช้ login function จาก useAuth hook
+      await login({
+        username: formData.username.trim(), // ✅ ใช้ username ตาม schema
         password: formData.password,
       });
 
       toast.dismiss(loadingToast);
+      setLoginSuccess(true);
 
-      if (result.success) {
-        setLoginSuccess(true);
+      toast.success("เข้าสู่ระบบสำเร็จ!", {
+        description: `ยินดีต้อนรับเข้าสู่ระบบจัดการสต็อก`,
+        duration: 3000,
+      });
 
-        toast.success("เข้าสู่ระบบสำเร็จ!", {
-          description: `ยินดีต้อนรับเข้าสู่ระบบจัดการสต็อก`,
-          duration: 3000,
-        });
-
-        // ✅ ตรวจสอบว่ามี organizations หรือไม่
-        if (result.organizations && result.organizations.length > 0) {
-          // มีองค์กรแล้ว - ไปที่ dashboard
-          router.push("/dashboard");
-        } else {
-          // ยังไม่มีองค์กร - ไปสร้างองค์กรหรือรอ invitation
-          router.push("/organizations/create");
-        }
-      } else {
-        const errorMsg = result.error || "เข้าสู่ระบบไม่สำเร็จ";
-        setError(errorMsg);
-        
-        // ✅ แสดง error message ที่เฉพาะเจาะจง
-        if (errorMsg.includes("Username") || errorMsg.includes("username")) {
-          toast.error("Username ไม่ถูกต้อง", {
-            description: "ไม่พบ Username นี้ในระบบ กรุณาตรวจสอบอีกครั้ง",
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-          });
-        } else if (errorMsg.includes("password") || errorMsg.includes("รหัสผ่าน")) {
-          toast.error("รหัสผ่านไม่ถูกต้อง", {
-            description: "รหัสผ่านไม่ตรงกับในระบบ กรุณาลองใหม่อีกครั้ง",
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-          });
-        } else if (errorMsg.includes("PENDING") || errorMsg.includes("รออนุมัติ")) {
-          toast.error("บัญชียังไม่ได้รับการอนุมัติ", {
-            description: "กรุณาติดต่อผู้ดูแลระบบเพื่อขออนุมัติการใช้งาน",
-            icon: <AlertTriangle className="w-4 h-4" />,
-            duration: 6000,
-          });
-        } else {
-          toast.error("เข้าสู่ระบบไม่สำเร็จ", {
-            description: errorMsg,
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-          });
-        }
-      }
+      // Navigate based on organizations
+      router.push("/dashboard");
+      
     } catch (error) {
       toast.dismiss(loadingToast);
       console.error("Login error:", error);
       
-      const errorMsg = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+      const errorMsg = error instanceof Error ? error.message : "เข้าสู่ระบบไม่สำเร็จ";
       setError(errorMsg);
-      toast.error("ไม่สามารถเชื่อมต่อได้", {
-        description: "กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง",
-        icon: <XCircle className="w-4 h-4" />,
-        duration: 6000,
-      });
+      
+      // ✅ แสดง error message ที่เฉพาะเจาะจง
+      if (errorMsg.includes("Username") || errorMsg.includes("username")) {
+        toast.error("Username ไม่ถูกต้อง", {
+          description: "ไม่พบ Username นี้ในระบบ กรุณาตรวจสอบอีกครั้ง",
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+        });
+      } else if (errorMsg.includes("password") || errorMsg.includes("รหัสผ่าน")) {
+        toast.error("รหัสผ่านไม่ถูกต้อง", {
+          description: "รหัสผ่านไม่ตรงกับในระบบ กรุณาลองใหม่อีกครั้ง",
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+        });
+      } else if (errorMsg.includes("PENDING") || errorMsg.includes("รออนุมัติ")) {
+        toast.error("บัญชียังไม่ได้รับการอนุมัติ", {
+          description: "กรุณาติดต่อผู้ดูแลระบบเพื่อขออนุมัติการใช้งาน",
+          icon: <AlertTriangle className="w-4 h-4" />,
+          duration: 6000,
+        });
+      } else {
+        toast.error("เข้าสู่ระบบไม่สำเร็จ", {
+          description: errorMsg,
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+        });
+      }
     } finally {
       setIsLoading(false);
     }

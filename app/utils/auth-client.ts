@@ -1,10 +1,10 @@
-// app/utils/auth-client.ts - FIXED VERSION
-// InvenStock - Client-side Authentication Utilities
+// app/utils/auth-client.ts - CORRECTED VERSION
+// InvenStock - Username-based Authentication (ตรงกับ Schema)
 
 export interface User {
   id: string;
-  email: string;
-  username?: string;           // ✅ Optional ตาม Schema
+  email?: string;             // ✅ Optional ตาม Schema
+  username: string;           // ✅ Required ตาม Schema
   firstName: string;
   lastName: string;
   fullName: string;           // Computed field
@@ -38,9 +38,9 @@ export interface OrganizationUser {
   organization: Organization;
 }
 
-// 🔥 FIXED: เปลี่ยนจาก username เป็น email
+// ✅ FIXED: ใช้ username เป็น primary credential
 export interface LoginRequest {
-  email: string;              // ✅ ตรงกับ Schema
+  username: string;           // ✅ Primary credential ตาม Schema
   password: string;
 }
 
@@ -52,12 +52,14 @@ export interface LoginResponse {
   organizations?: OrganizationUser[]; // Organizations ของ user
 }
 
+// ✅ FIXED: username required, email optional
 export interface RegisterRequest {
-  email: string;
-  username?: string;          // ✅ Optional
+  username: string;           // ✅ Required primary credential
   password: string;
   firstName: string;
   lastName: string;
+  email?: string;             // ✅ Optional ตาม Schema
+  phone?: string;             // ✅ Optional ตาม Schema
   organizationName?: string;  // สำหรับสร้าง org ใหม่
 }
 
@@ -81,7 +83,7 @@ export interface AuthError {
 // ===== API CLIENT FUNCTIONS =====
 
 /**
- * Login user with email and password
+ * Login user with username and password
  */
 export async function loginUser(credentials: LoginRequest): Promise<LoginResponse> {
   const response = await fetch('/api/auth/login', {
@@ -230,10 +232,10 @@ export function clearStoredUserData(): void {
 export function validateLoginData(data: Partial<LoginRequest>): string[] {
   const errors: string[] = [];
 
-  if (!data.email?.trim()) {
-    errors.push('Email is required');
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.push('Invalid email format');
+  if (!data.username?.trim()) {
+    errors.push('Username is required');
+  } else if (data.username.length < 3) {
+    errors.push('Username must be at least 3 characters');
   }
 
   if (!data.password) {
@@ -249,13 +251,9 @@ export function validateLoginData(data: Partial<LoginRequest>): string[] {
 export function validateRegisterData(data: Partial<RegisterRequest>): string[] {
   const errors: string[] = [];
 
-  if (!data.email?.trim()) {
-    errors.push('Email is required');
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.push('Invalid email format');
-  }
-
-  if (data.username && data.username.length < 3) {
+  if (!data.username?.trim()) {
+    errors.push('Username is required');
+  } else if (data.username.length < 3) {
     errors.push('Username must be at least 3 characters');
   }
 
@@ -271,6 +269,13 @@ export function validateRegisterData(data: Partial<RegisterRequest>): string[] {
 
   if (!data.lastName?.trim()) {
     errors.push('Last name is required');
+  }
+
+  // Email validation (Optional แต่ต้องถูกรูปแบบถ้ากรอก)
+  if (data.email?.trim()) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.push('Invalid email format');
+    }
   }
 
   return errors;

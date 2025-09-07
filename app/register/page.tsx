@@ -1,9 +1,9 @@
-// app/register/page.tsx
+// app/register/page.tsx - SIMPLIFIED VERSION (No Pending Approval)
 
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@/app/utils/auth-client';
+import { useAuth } from '@/app/utils/auth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,27 +16,26 @@ import {
   Building2, 
   Eye, 
   EyeOff, 
-  Clock, 
   CheckCircle2, 
   XCircle, 
   AlertTriangle,
   UserPlus,
-  Shield,
   Mail,
-  Phone
+  Phone,
+  ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 
 // ✅ Interface ตรงกับ Prisma Schema
 interface RegisterFormData {
-  username: string;
+  username: string;      // ✅ Primary credential
   password: string;
   confirmPassword: string;
   firstName: string;
   lastName: string;
-  email?: string;        // Optional ตรง schema
-  phone?: string;        // Optional ตรง schema
+  email?: string;        // ✅ Optional ตรง schema
+  phone?: string;        // ✅ Optional ตรง schema
 }
 
 export default function RegisterPage() {
@@ -54,19 +53,14 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState<{
-    show: boolean;
-    requiresApproval: boolean;
-    message: string;
-  }>({ show: false, requiresApproval: false, message: '' });
-  
+  const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const { register, loading } = useAuth();
   const router = useRouter();
 
   const validateForm = (): boolean => {
-    // ✅ Username validation ตาม Prisma constraint
+    // Username validation
     if (!formData.username?.trim() || formData.username.length < 3) {
       const errorMsg = 'Username ต้องมีอย่างน้อย 3 ตัวอักษร';
       setError(errorMsg);
@@ -114,7 +108,7 @@ export default function RegisterPage() {
       return false;
     }
 
-    // Name validation (Required ตาม schema)
+    // Name validation
     if (!formData.firstName?.trim() || !formData.lastName?.trim()) {
       const errorMsg = 'กรุณากรอกชื่อ-นามสกุล';
       setError(errorMsg);
@@ -147,7 +141,7 @@ export default function RegisterPage() {
       setError(errorMsg);
       toast.error('ยังไม่ได้ยอมรับเงื่อนไข', {
         description: 'กรุณาอ่านและยอมรับเงื่อนไขการใช้งานก่อนสมัครสมาชิก',
-        icon: <Shield className="w-4 h-4" />,
+        icon: <AlertTriangle className="w-4 h-4" />,
         duration: 5000,
       });
       return false;
@@ -171,7 +165,7 @@ export default function RegisterPage() {
     });
 
     try {
-      // ✅ ส่งข้อมูลตรงกับ Prisma Schema
+      // ✅ ส่งข้อมูลตรงกับ useAuth register function
       const registerData = {
         username: formData.username.trim().toLowerCase(),
         password: formData.password,
@@ -182,75 +176,59 @@ export default function RegisterPage() {
         ...(formData.phone?.trim() && { phone: formData.phone.trim() }),
       };
 
-      const result = await register(registerData);
+      // ✅ ใช้ register function จาก useAuth hook
+      await register(registerData);
       
       toast.dismiss(loadingToast);
       
-      if (result.success) {
-        // ✅ สมัครสมาชิกสำเร็จ - แสดงสถานะตาม requiresApproval
-        setSuccess({
-          show: true,
-          requiresApproval: result.requiresApproval || true, // Default ต้องรออนุมัติ
-          message: result.requiresApproval 
-            ? 'สมัครสมาชิกสำเร็จ! กรุณารอการอนุมัติจากผู้ดูแลระบบ'
-            : 'สมัครสมาชิกสำเร็จ! คุณสามารถเข้าสู่ระบบได้ทันที'
-        });
+      // ✅ สมัครสมาชิกสำเร็จ - ไม่มี approval process
+      setSuccess(true);
+      
+      toast.success('สมัครสมาชิกสำเร็จ!', {
+        description: 'บัญชีของคุณพร้อมใช้งานแล้ว กำลังเข้าสู่ระบบ...',
+        icon: <UserPlus className="w-4 h-4" />,
+        duration: 3000,
+      });
+      
+      // ✅ Redirect ไป dashboard ทันที (ไม่ต้องรออนุมัติ)
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
         
-        toast.success('สมัครสมาชิกสำเร็จ!', {
-          description: result.requiresApproval 
-            ? 'บัญชีของคุณได้รับการสร้างแล้ว กรุณารอการอนุมัติจากผู้ดูแลระบบ'
-            : 'คุณสามารถเข้าสู่ระบบได้ทันที',
-          icon: <UserPlus className="w-4 h-4" />,
-          duration: 5000,
-        });
-        
-        // Redirect ไป login หลัง 3 วินาที
-        setTimeout(() => {
-          router.push('/login');
-        }, 3000);
-      } else {
-        const errorMsg = result.error || 'สมัครสมาชิกไม่สำเร็จ';
-        setError(errorMsg);
-        
-        // ✅ แสดง error message ที่เฉพาะเจาะจง
-        if (errorMsg.includes('username') || errorMsg.includes('Username')) {
-          toast.error('Username นี้มีคนใช้แล้ว', {
-            description: 'กรุณาเลือก Username อื่น',
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-            action: {
-              label: "แก้ไข",
-              onClick: () => {
-                setError('');
-                document.getElementById('username')?.focus();
-              },
-            },
-          });
-        } else if (errorMsg.includes('email') || errorMsg.includes('Email')) {
-          toast.error('อีเมลนี้มีคนใช้แล้ว', {
-            description: 'กรุณาใช้อีเมลอื่น หรือเว้นว่างไว้',
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-          });
-        } else {
-          toast.error('สมัครสมาชิกไม่สำเร็จ', {
-            description: errorMsg,
-            icon: <XCircle className="w-4 h-4" />,
-            duration: 5000,
-          });
-        }
-      }
     } catch (error) {
       toast.dismiss(loadingToast);
       
       console.error('Registration error:', error);
-      const errorMsg = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      const errorMsg = error instanceof Error ? error.message : 'สมัครสมาชิกไม่สำเร็จ';
       setError(errorMsg);
-      toast.error('ไม่สามารถเชื่อมต่อได้', {
-        description: 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง',
-        icon: <XCircle className="w-4 h-4" />,
-        duration: 6000,
-      });
+      
+      // ✅ แสดง error message ที่เฉพาะเจาะจง
+      if (errorMsg.includes('username') || errorMsg.includes('Username')) {
+        toast.error('Username นี้มีคนใช้แล้ว', {
+          description: 'กรุณาเลือก Username อื่น',
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+          action: {
+            label: "แก้ไข",
+            onClick: () => {
+              setError('');
+              document.getElementById('username')?.focus();
+            },
+          },
+        });
+      } else if (errorMsg.includes('email') || errorMsg.includes('Email')) {
+        toast.error('อีเมลนี้มีคนใช้แล้ว', {
+          description: 'กรุณาใช้อีเมลอื่น หรือเว้นว่างไว้',
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+        });
+      } else {
+        toast.error('สมัครสมาชิกไม่สำเร็จ', {
+          description: errorMsg,
+          icon: <XCircle className="w-4 h-4" />,
+          duration: 5000,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -285,60 +263,46 @@ export default function RegisterPage() {
     );
   }
 
-  // Success screen
-  if (success.show) {
+  // ✅ Success screen - แบบใหม่ไม่มี approval
+  if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
         <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="pt-6 text-center">
             <div className="mb-4">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                success.requiresApproval ? 'bg-orange-100' : 'bg-green-100'
-              }`}>
-                {success.requiresApproval ? (
-                  <Clock className="w-8 h-8 text-orange-600" />
-                ) : (
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
-                )}
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-100">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
             </div>
             
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {success.requiresApproval ? 'รอการอนุมัติ' : 'สมัครสมาชิกสำเร็จ'}
+              สมัครสมาชิกสำเร็จ!
             </h3>
             
-            <p className="text-gray-600 mb-4">{success.message}</p>
+            <p className="text-gray-600 mb-4">
+              บัญชีของคุณพร้อมใช้งานแล้ว กำลังเข้าสู่ระบบ...
+            </p>
             
-            <div className={`border rounded-lg p-4 mb-6 ${
-              success.requiresApproval 
-                ? 'bg-orange-50 border-orange-200' 
-                : 'bg-green-50 border-green-200'
-            }`}>
-              <p className={`text-sm ${
-                success.requiresApproval ? 'text-orange-700' : 'text-green-700'
-              }`}>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-green-700">
                 <CheckCircle2 className="w-4 h-4 inline mr-1" />
-                บัญชีของคุณได้รับการสร้างเรียบร้อยแล้ว
+                บัญชีของคุณได้รับการสร้างและเปิดใช้งานเรียบร้อยแล้ว
               </p>
-              <p className={`text-sm mt-1 ${
-                success.requiresApproval ? 'text-orange-600' : 'text-green-600'
-              }`}>
-                {success.requiresApproval 
-                  ? 'ติดต่อผู้ดูแลระบบเพื่อขออนุมัติการใช้งาน'
-                  : 'คุณสามารถเข้าสู่ระบบได้ทันที'
-                }
+              <p className="text-sm mt-1 text-green-600">
+                คุณสามารถเริ่มใช้งานระบบได้ทันที
               </p>
             </div>
             
             <p className="text-sm text-gray-500 mb-6">
-              กำลังนำคุณไปยังหน้าเข้าสู่ระบบ...
+              กำลังนำคุณเข้าสู่ระบบ...
             </p>
             
             <Button
-              onClick={() => router.push('/login')}
-              className="w-full bg-blue-500 hover:bg-blue-600"
+              onClick={() => router.push('/dashboard')}
+              className="w-full bg-green-500 hover:bg-green-600"
             >
-              ไปหน้าเข้าสู่ระบบ
+              <ArrowRight className="w-4 h-4 mr-2" />
+              เข้าสู่ระบบ
             </Button>
           </CardContent>
         </Card>
@@ -568,10 +532,11 @@ export default function RegisterPage() {
                     </Label>
                   </div>
                   
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      <Shield className="w-3 h-3 inline mr-1" />
-                      บัญชีที่สร้างใหม่จะอยู่ในสถานะ "รออนุมัติ" กรุณาติดต่อผู้ดูแลระบบเพื่อขออนุมัติการใช้งาน
+                  {/* ✅ เอาข้อความ approval ออก */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-xs text-green-700 leading-relaxed">
+                      <CheckCircle2 className="w-3 h-3 inline mr-1" />
+                      บัญชีที่สร้างใหม่จะพร้อมใช้งานทันที ไม่ต้องรออนุมัติ
                     </p>
                   </div>
                 </div>

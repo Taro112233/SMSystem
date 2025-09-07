@@ -1,5 +1,5 @@
-// app/utils/auth.tsx
-// InvenStock - Authentication Utilities and React Hooks for Multi-tenant
+// app/utils/auth.tsx - CORRECTED VERSION
+// InvenStock - Username-based Authentication Hooks
 
 'use client';
 
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       storeUserData(response.user);
       
-      console.log('✅ Login successful:', response.user.email);
+      console.log('✅ Login successful:', response.user.username);
     } catch (err) {
       const errorMessage = parseAuthError(err);
       setError(errorMessage);
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const response = await registerUser(userData);
       
-      console.log('✅ Registration successful:', response.user.email);
+      console.log('✅ Registration successful:', response.user.username);
       
       // If no approval required, log them in
       if (!response.requiresApproval && response.token) {
@@ -443,7 +443,7 @@ export function useAuthAction() {
 
 export function useLoginForm() {
   const [credentials, setCredentials] = useState<LoginRequest>({
-    email: '',
+    username: '',              // ✅ แก้ไขจาก email เป็น username
     password: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
@@ -471,11 +471,12 @@ export function useLoginForm() {
 
 export function useRegisterForm() {
   const [userData, setUserData] = useState<RegisterRequest>({
-    email: '',
+    username: '',              // ✅ แก้ไขให้ username เป็น required
     password: '',
     firstName: '',
     lastName: '',
-    username: '',
+    email: '',                 // ✅ แก้ไขให้ email เป็น optional
+    phone: '',                 // ✅ เพิ่ม phone field
     organizationName: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
