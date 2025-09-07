@@ -1,16 +1,15 @@
 // prisma/schemas/user.prisma
-// ===== USER MANAGEMENT SCHEMA - InvenStock V1.0 =====
+// ===== USER MANAGEMENT SCHEMA - InvenStock V1.0 (CORRECTED) =====
 
 model User {
   id          String     @id @default(cuid())
-  email       String     @unique
-  username    String?    @unique
-  password    String     // bcrypt hashed
+  email       String?             // ✅ Optional for notifications/recovery
+  username    String     @unique  // ✅ Primary login credential
+  password    String              // bcrypt hashed
   
   // Personal Information
   firstName   String
   lastName    String
-  avatar      String?    // URL to profile picture
   phone       String?
   
   // Account Status
@@ -39,6 +38,7 @@ model User {
   auditLogs            AuditLog[]
   
   @@index([email])
+  @@index([username])  // ✅ เพิ่ม index สำหรับ primary login
   @@index([status])
   @@index([isActive])
   @@map("users")
@@ -49,11 +49,15 @@ model UserInvitation {
   id             String           @id @default(cuid())
   organizationId String
   inviterId      String
-  inviteeId      String?          // null if inviting by email
-  inviteeEmail   String
+  inviteeId      String?          // null if inviting by username/email
+  
+  // ✅ รองรับทั้ง email และ username invitation
+  inviteeEmail   String?          // Can invite by email
+  inviteeUsername String?         // Can invite by username
   
   // Invitation Details
-  roleId         String?          // 🔥 FIXED: Single role ID instead of arrayฃ
+  roleId         String?          // Role to assign upon acceptance
+  message        String?          // Personal invitation message
   
   // Status
   status         InvitationStatus @default(PENDING)
@@ -72,7 +76,10 @@ model UserInvitation {
   inviter        User             @relation("InviterUser", fields: [inviterId], references: [id])
   invitee        User?            @relation("InviteeUser", fields: [inviteeId], references: [id])
   
+  // ✅ ต้องมีอย่างน้อย 1 ใน 2: email หรือ username
+  // และ unique constraint แยกกัน
   @@unique([organizationId, inviteeEmail])
+  @@unique([organizationId, inviteeUsername])
   @@index([status])
   @@index([expiresAt])
   @@map("user_invitations")

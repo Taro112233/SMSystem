@@ -1,9 +1,9 @@
-// middleware.ts
+// middleware.ts - FIXED VERSION
 // InvenStock - Multi-Tenant Inventory Management System
-// Basic Authentication Middleware
+// Basic Authentication Middleware (Next.js 15 Compatible)
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/request';
+import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth';
 
 // Public routes that don't require authentication
@@ -21,7 +21,8 @@ const publicApiRoutes = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/health',
-  '/api/status'
+  '/api/status',
+  '/api/arcjet'
 ];
 
 export async function middleware(request: NextRequest) {
@@ -35,7 +36,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/static') ||
     pathname.startsWith('/images') ||
     pathname.startsWith('/icons') ||
-    pathname.includes('.') && !pathname.includes('/api/')
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/manifest') ||
+    pathname.startsWith('/robots') ||
+    (pathname.includes('.') && !pathname.includes('/api/'))
   ) {
     return NextResponse.next();
   }
@@ -85,12 +89,38 @@ export async function middleware(request: NextRequest) {
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-user-id', payload.userId);
       requestHeaders.set('x-user-email', payload.email || '');
+      
+      // Add organization context if available
+      if (payload.organizationId) {
+        requestHeaders.set('x-organization-id', payload.organizationId);
+      }
+      if (payload.roleId) {
+        requestHeaders.set('x-role-id', payload.roleId);
+      }
 
       return NextResponse.next({
         request: {
           headers: requestHeaders,
         },
       });
+    }
+
+    // For organization-scoped routes, check if user has organization access
+    const orgIdMatch = pathname.match(/^\/org\/([^\/]+)/);
+    if (orgIdMatch) {
+      const requestedOrgId = orgIdMatch[1];
+      
+      // If user has organization in JWT, check if it matches
+      if (payload.organizationId && payload.organizationId !== requestedOrgId) {
+        console.log(`❌ Organization mismatch: ${payload.organizationId} vs ${requestedOrgId}`);
+        return NextResponse.redirect(new URL('/select-organization', request.url));
+      }
+      
+      // If no organization in JWT, redirect to select organization
+      if (!payload.organizationId) {
+        console.log(`❌ No organization context`);
+        return NextResponse.redirect(new URL('/select-organization', request.url));
+      }
     }
 
     return NextResponse.next();
@@ -118,9 +148,9 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (images, icons, etc.)
+     * - favicon.ico, manifest.json, robots.txt (public files)
+     * - images, icons (public assets)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|robots.txt|images|icons).*)',
   ],
 };

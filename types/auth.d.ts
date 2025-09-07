@@ -1,23 +1,22 @@
-// types/auth.d.ts
+// types/auth.d.ts - CORRECTED VERSION
 // InvenStock - Authentication Type Definitions
 
 export interface User {
   id: string;
-  email: string;
-  username?: string;
+  email?: string;             // ✅ Optional ตรงกับ Schema
+  username: string;           // ✅ Required ตรงกับ Schema
   firstName: string;
   lastName: string;
-  avatar?: string;
   phone?: string;
   status: UserStatus;
   isActive: boolean;
   emailVerified: boolean;
   lastLogin?: Date;
-  lastLoginIp?: string;
-  language: string;
-  timezone: string;
   createdAt: Date;
   updatedAt: Date;
+  
+  // Computed fields (ไม่อยู่ใน Database)
+  fullName?: string;          // firstName + lastName
 }
 
 export interface Organization {
@@ -36,8 +35,6 @@ export interface Organization {
   currency: string;
   allowDepartments: boolean;
   allowCustomRoles: boolean;
-  allowGuestAccess: boolean;
-  maxUsers?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,22 +51,11 @@ export interface OrganizationUser {
   user: User;
 }
 
-export interface JWTPayload {
-  userId: string;
-  email: string;
-  organizationId?: string;
-  role?: string;
-  permissions?: string[];
-  iat?: number;
-  exp?: number;
-  iss?: string;
-  aud?: string;
-}
-
+// ✅ Authentication Requests
 export interface LoginRequest {
-  email: string;
+  username: string;           // Primary credential
   password: string;
-  organizationId?: string;
+  organizationId?: string;    // Optional context switching
 }
 
 export interface LoginResponse {
@@ -77,29 +63,33 @@ export interface LoginResponse {
   user: User;
   token: string;
   organizations: OrganizationUser[];
+  currentOrganization?: Organization;  // If organizationId provided
   message?: string;
 }
 
 export interface RegisterRequest {
-  email: string;
+  username: string;           // ✅ Required
   password: string;
   firstName: string;
   lastName: string;
-  username?: string;
-  organizationName?: string;
+  email?: string;             // ✅ Optional
+  phone?: string;
+  organizationName?: string;  // Create new org if provided
 }
 
 export interface RegisterResponse {
   success: boolean;
   user: User;
-  token: string;
+  token?: string;
   organization?: Organization;
+  requiresApproval: boolean;
   message?: string;
 }
 
+// ✅ Multi-tenant Context
 export interface AuthContextType {
   user: User | null;
-  organization: Organization | null;
+  currentOrganization: Organization | null;
   organizations: OrganizationUser[];
   loading: boolean;
   login: (data: LoginRequest) => Promise<LoginResponse>;
@@ -109,39 +99,90 @@ export interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-export interface PermissionCheck {
-  resource: string;
-  action: string;
-  organizationId?: string;
-  departmentId?: string;
+// ✅ JWT Payload
+export interface JWTPayload {
+  userId: string;
+  username: string;
+  email?: string;
+  firstName: string;
+  lastName: string;
+  organizationId?: string;    // Current active organization
+  roleId?: string;            // Current role in active org
+  permissions?: string[];     // Current permissions
+  iat?: number;
+  exp?: number;
 }
 
-export interface RolePermission {
+// ✅ Invitation Interface
+export interface UserInvitation {
   id: string;
-  roleId: string;
-  permissionId: string;
-  allowed: boolean;
+  organizationId: string;
+  inviterId: string;
+  inviteeId?: string;
+  inviteeEmail?: string;      // ✅ Optional
+  inviteeUsername?: string;   // ✅ Optional
+  roleId?: string;
+  message?: string;
+  status: InvitationStatus;
+  expiresAt: Date;
+  respondedAt?: Date;
+  response?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  organization: Organization;
+  inviter: User;
+  invitee?: User;
 }
 
+// Role & Permission interfaces
 export interface OrganizationRole {
   id: string;
   organizationId: string;
   name: string;
   description?: string;
-  color?: string;
-  icon?: string;
+  color?: ColorTheme;         // ✅ ใช้ enum
+  icon?: IconType;            // ✅ ใช้ enum
   position: number;
   isDefault: boolean;
   isSystemRole: boolean;
   isActive: boolean;
-  permissions: RolePermission[];
+  permissions: OrganizationRolePermission[];
   createdBy: string;
   updatedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Enums (should match Prisma schema)
+export interface OrganizationRolePermission {
+  id: string;
+  roleId: string;
+  permissionId: string;
+  allowed: boolean;
+  permission: Permission;
+}
+
+export interface Permission {
+  id: string;
+  categoryId: string;
+  name: string;              // "products.create"
+  displayName: string;       // "สร้างสินค้าใหม่"
+  description?: string;
+  action: PermissionAction;
+  resource: string;          // "products"
+  isWildcard: boolean;
+  category: PermissionCategory;
+}
+
+export interface PermissionCategory {
+  id: string;
+  name: string;             // "products"
+  displayName: string;      // "การจัดการสินค้า"
+  description?: string;
+  icon?: string;
+  sortOrder: number;
+}
+
+// ✅ Enums ตรงกับ Prisma Schema
 export enum UserStatus {
   PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
@@ -171,4 +212,45 @@ export enum PermissionAction {
   MANAGE = 'MANAGE',
   EXPORT = 'EXPORT',
   IMPORT = 'IMPORT'
+}
+
+export enum ColorTheme {
+  BLUE = 'BLUE',
+  GREEN = 'GREEN',
+  RED = 'RED',
+  YELLOW = 'YELLOW',
+  PURPLE = 'PURPLE',
+  PINK = 'PINK',
+  INDIGO = 'INDIGO',
+  TEAL = 'TEAL',
+  ORANGE = 'ORANGE',
+  GRAY = 'GRAY',
+  SLATE = 'SLATE',
+  EMERALD = 'EMERALD'
+}
+
+export enum IconType {
+  BUILDING = 'BUILDING',
+  HOSPITAL = 'HOSPITAL',
+  PHARMACY = 'PHARMACY',
+  WAREHOUSE = 'WAREHOUSE',
+  LABORATORY = 'LABORATORY',
+  PILL = 'PILL',
+  BOTTLE = 'BOTTLE',
+  SYRINGE = 'SYRINGE',
+  BANDAGE = 'BANDAGE',
+  STETHOSCOPE = 'STETHOSCOPE',
+  CROWN = 'CROWN',
+  SHIELD = 'SHIELD',
+  PERSON = 'PERSON',
+  EYE = 'EYE',
+  GEAR = 'GEAR',
+  BOX = 'BOX',
+  FOLDER = 'FOLDER',
+  TAG = 'TAG',
+  STAR = 'STAR',
+  HEART = 'HEART',
+  CIRCLE = 'CIRCLE',
+  SQUARE = 'SQUARE',
+  TRIANGLE = 'TRIANGLE'
 }
